@@ -4,6 +4,7 @@ module Phoenix.Channel exposing
     , push
     , PortIn, InternalError(..), Msg(..), subscriptions
     , on, allOn, off, allOff
+    , TopicMsg(..), topicSubscription
     )
 
 {-| This module can be used to talk directly to PhoenixJS without needing to
@@ -260,11 +261,19 @@ type Msg
     | PushOk Topic Event Payload String
     | PushError Topic Event Payload String
     | PushTimeout Topic Event Payload String
-    | Message Topic Event Payload
     | Error Topic
     | LeaveOk Topic
     | Closed Topic
     | InternalError InternalError
+
+
+type TopicMsg
+    = Event
+        { topic : Topic
+        , event : Event
+        , payload : Payload
+        }
+    | BadEvent String
 
 
 {-| Subscribe to receive incoming Channel [Msg](#Msg)s.
@@ -289,6 +298,11 @@ subscriptions msg portIn =
     portIn (handleIn msg)
 
 
+topicSubscription : PortIn TopicMsg -> Sub TopicMsg
+topicSubscription portIn =
+    portIn decodeTopicEvent
+
+
 handleIn : (Msg -> msg) -> { topic : String, msg : String, payload : JE.Value } -> msg
 handleIn toMsg { topic, msg, payload } =
     case msg of
@@ -309,9 +323,6 @@ handleIn toMsg { topic, msg, payload } =
 
         "PushTimeout" ->
             decodePushResponse toMsg topic PushTimeout payload
-
-        "Message" ->
-            decodeEvent toMsg topic Message payload
 
         "Error" ->
             toMsg (Error topic)
@@ -416,14 +427,18 @@ pushDecoder =
         |> andMap (JD.field "ref" JD.string)
 
 
-decodeEvent : (Msg -> msg) -> Topic -> (Topic -> Event -> Payload -> Msg) -> Value -> msg
-decodeEvent toMsg topic eventMsg payload =
+decodeTopicEvent : { topic : String, payload : JE.Value, msg : String } -> TopicMsg
+decodeTopicEvent { topic, payload } =
     case JD.decodeValue eventDecoder payload of
         Ok event ->
-            toMsg (eventMsg topic event.event event.payload)
+            Event
+                { topic = topic
+                , event = event.event
+                , payload = event.payload
+                }
 
         Result.Err error ->
-            toMsg (InternalError (DecoderError (JD.errorToString error)))
+            BadEvent (JD.errorToString error)
 
 
 type alias EventIn =

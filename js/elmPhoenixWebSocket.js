@@ -9,7 +9,6 @@
 //
 ////////////////////////////////////////////////////////
 
-
 /*
 
    This is Version 3
@@ -24,48 +23,46 @@
 
 */
 
-
 let ElmPhoenixWebSocket = {
-
-    /* The Phoenix Socket class imported with `import {Socket} from "phoenix"`.
+  /* The Phoenix Socket class imported with `import {Socket} from "phoenix"`.
 
        This is passed in as a parameter to the `init` function.
     */
-    phoenixSocket: {},
+  phoenixSocket: {},
 
-    // The Phoenix JS socket instantiated with `new phoenixSocket(url, params)`.
-    socket: {},
+  // The Phoenix JS socket instantiated with `new phoenixSocket(url, params)`.
+  socket: {},
 
-    /* A map of channels with each topic as the key.
+  /* A map of channels with each topic as the key.
 
        This is used to store multiple channels.
     */
-    channels: {},
+  channels: {},
 
-    /* A map of lists of incoming channel events with the topic as the key.
+  /* A map of lists of incoming channel events with the topic as the key.
 
     */
-    events: {},
+  events: {},
 
-    /* The Phoenix Presence class imported with `import {Presence} from "phoenix"`.
+  /* The Phoenix Presence class imported with `import {Presence} from "phoenix"`.
 
        This is passed in as a parameter to the `init` function.
      */
-    phoenixPresence: {},
+  phoenixPresence: {},
 
-    /* A map of presence data with the channel topic as the key.
+  /* A map of presence data with the channel topic as the key.
 
        This is used to store the presence data when multiple channels are used.
     */
-    presences: {},
+  presences: {},
 
-    // The Elm ports object.
-    elmPorts: {},
+  // The Elm ports object.
+  elmPorts: {},
 
-    // The endpoint url.
-    url: "/socket",
+  // The endpoint url.
+  url: "/socket",
 
-    /* This is used in the onClose and onOpen callback functions because
+  /* This is used in the onClose and onOpen callback functions because
        onClose does not provide enough information to determine if the
        user was:
 
@@ -77,28 +74,30 @@ let ElmPhoenixWebSocket = {
        this value is true when onClose fires, it is because the network has
        dropped out.
     */
-    allowReconnect: false,
+  allowReconnect: false,
 
-    /* init
+  /* init
 
         Set up the ports, socket and presence.
 
         Send the socket info back to Phoenix.elm
     */
-    init(ports, socket, presence) {
-        this.elmPorts = ports
-        this.elmPorts.phoenixSend.subscribe( params => this[params.msg](params.payload))
+  init(ports, socket, presence) {
+    this.elmPorts = ports;
+    this.elmPorts.phoenixSend.subscribe(params =>
+      this[params.msg](params.payload)
+    );
 
-        this.phoenixSocket = socket
-        this.phoenixPresence = presence
+    this.phoenixSocket = socket;
+    this.phoenixPresence = presence;
 
-        this.socket = new this.phoenixSocket(this.url, {})
-        this.info()
-    },
+    this.socket = new this.phoenixSocket(this.url, {});
+    this.info();
+  },
 
-    /********** Socket **********/
+  /********** Socket **********/
 
-    /* connect
+  /* connect
 
         Connect to the socket.
 
@@ -112,37 +111,38 @@ let ElmPhoenixWebSocket = {
             options <maybe object>
                 Options to set on the socket when creating it.
     */
-    connect(data) {
-        this.socket = new this.phoenixSocket(this.url, this.setOptionsAndParams(data))
-        this.socket.onError( resp => this.socketSend("Error", {reason: ""}))
-        this.socket.onMessage( resp => this.onMessage(resp))
+  connect(data) {
+    this.socket = new this.phoenixSocket(
+      this.url,
+      this.setOptionsAndParams(data)
+    );
+    this.socket.onError(resp => this.socketSend("Error", { reason: "" }));
+    this.socket.onMessage(resp => this.onMessage(resp));
 
-        this.socket.onOpen( resp => {
-            this.socketSend("Opened", resp)
-            this.info()
-            this.allowReconnect = true
-        })
+    this.socket.onOpen(resp => {
+      this.socketSend("Opened", resp);
+      this.info();
+      this.allowReconnect = true;
+    });
 
-        this.socket.onClose( resp => {
-            if(resp.code != 1000) {
-                if(this.allowReconnect) {
-
-                    /* The socket has closed unexpectedly after having been open,
+    this.socket.onClose(resp => {
+      if (resp.code != 1000) {
+        if (this.allowReconnect) {
+          /* The socket has closed unexpectedly after having been open,
                        so we assume the closure was due to a drop in the network.
                     */
-                    this.socketSend("Error", {reason: "Unreachable"})
-                } else {
-
-                    /* The socket closes, and allowReconnect is still equal to
+          this.socketSend("Error", { reason: "Unreachable" });
+        } else {
+          /* The socket closes, and allowReconnect is still equal to
                        false, so we assume the socket has denied the connection for
                        some reason.
 
                        Therefore, reset the reconnectTimer so that we don't keep
                        trying to connect with the same bad creds.
                      */
-                    this.socket.reconnectTimer.reset()
+          this.socket.reconnectTimer.reset();
 
-                    /* One known case exists that isn't covered here.
+          /* One known case exists that isn't covered here.
 
                        If the application or the server is down, but the network
                        up, then we still end up here, sending back "Denied". This
@@ -161,22 +161,22 @@ let ElmPhoenixWebSocket = {
                        This would require the user to opt in and provide additional
                        config details to be used by the ajax requests.
                      */
-                    this.socketSend("Error", {reason: "Denied"})
-                }
-            }
-            this.info()
-            this.socketSend("Closed", resp)
-        })
+          this.socketSend("Error", { reason: "Denied" });
+        }
+      }
+      this.info();
+      this.socketSend("Closed", resp);
+    });
 
-        this.info()
+    this.info();
 
-        // Ensure this is set to false before trying to connect.
-        this.allowReconnect = false
-        this.socketSend("Connecting", {})
-        this.socket.connect()
-    },
+    // Ensure this is set to false before trying to connect.
+    this.allowReconnect = false;
+    this.socketSend("Connecting", {});
+    this.socket.connect();
+  },
 
-    /* setOptionsAndParams
+  /* setOptionsAndParams
 
         data <object>
             params <maybe object>
@@ -186,85 +186,90 @@ let ElmPhoenixWebSocket = {
             options <maybe object>
                 Any options to set on the socket when connecting.
     */
-    setOptionsAndParams(data) {
-        if (data) {
+  setOptionsAndParams(data) {
+    if (data) {
+      let options = data.options;
 
-            let options = data.options
-
-            if (options) {
-                if (options.reconnectSteppedBackoff && options.reconnectAfterMs) {
-                    options.reconnectAfterMs = function(tries) { return options.reconnectSteppedBackoff[ tries - 1] || options.reconnectAfterMs }
-                    delete options.reconnectSteppedBackoff
-                }
-
-                if (options.rejoinSteppedBackoff && options.rejoinAfterMs) {
-                    options.rejoinAfterMs = function(tries) { return options.rejoinSteppedBackoff[ tries - 1] || options.rejoinAfterMs }
-                    delete options.rejoinSteppedBackoff
-                }
-
-                if (options.logger) {
-                    options.logger = this.logger
-                }
-            }
-
-            if (data.params && options) {
-                options.params = data.params
-            } else if (data.params) {
-                options = data
-            }
-
-            return options
+      if (options) {
+        if (options.reconnectSteppedBackoff && options.reconnectAfterMs) {
+          options.reconnectAfterMs = function(tries) {
+            return (
+              options.reconnectSteppedBackoff[tries - 1] ||
+              options.reconnectAfterMs
+            );
+          };
+          delete options.reconnectSteppedBackoff;
         }
 
-        return null
-    },
+        if (options.rejoinSteppedBackoff && options.rejoinAfterMs) {
+          options.rejoinAfterMs = function(tries) {
+            return (
+              options.rejoinSteppedBackoff[tries - 1] || options.rejoinAfterMs
+            );
+          };
+          delete options.rejoinSteppedBackoff;
+        }
 
+        if (options.logger) {
+          options.logger = this.logger;
+        }
+      }
 
-    /* disconnect
+      if (data.params && options) {
+        options.params = data.params;
+      } else if (data.params) {
+        options = data;
+      }
+
+      return options;
+    }
+
+    return null;
+  },
+
+  /* disconnect
 
         Disconnect from the socket.
     */
-    disconnect( params ) {
-        this.channels = {}
-        this.presences = {}
-        this.events = {}
-        this.socketSend("Disconnecting", {})
-        this.socket.disconnect( () => {}, params.code)
-    },
+  disconnect(params) {
+    this.channels = {};
+    this.presences = {};
+    this.events = {};
+    this.socketSend("Disconnecting", {});
+    this.socket.disconnect(() => {}, params.code);
+  },
 
+  /* onMessage */
 
-    /* onMessage */
+  onMessage(resp) {
+    if (resp.topic == "phoenix") {
+      this.socketSend("Heartbeat", resp);
+    } else if (resp.event.indexOf("presence") == 0) {
+      this.socketSend("Presence", resp);
+    } else {
+      this.socketSend("Channel", resp);
+    }
+  },
 
-    onMessage( resp ) {
-        if (resp.topic == "phoenix" ) {
-            this.socketSend("Heartbeat", resp)
+  /***** Socket Information *****/
 
-        } else if (resp.event.indexOf("presence") == 0 ) {
-            this.socketSend("Presence", resp)
-
-        } else {
-            this.socketSend("Channel", resp)
-        }
-    },
-
-
-    /***** Socket Information *****/
-
-
-    /* connectionState
+  /* connectionState
 
         Retrieve the current connection state and send it back to Elm as a String.
     */
-    connectionState() { this.socketSend("ConnectionState", this.socket.connectionState()) },
+  connectionState() {
+    this.socketSend("ConnectionState", this.socket.connectionState());
+  },
 
-
-    /* endpoint
+  /* endpoint
 
         Retrieve the current endpoint and send it back to Elm as a String.
     */
-    endPointURL() { this.socketSend("EndPointURL", this.socket.endPointURL()) },
+  endPointURL() {
+    this.socketSend("EndPointURL", this.socket.endPointURL());
+  },
 
-    /* hasLogger
+  /* hasLogger
 
         Determine if a logger has been set on the socket and send it back to
         Elm as a Maybe Bool.
@@ -277,57 +282,62 @@ let ElmPhoenixWebSocket = {
         If it does not exist, we simply send back `null` to signify that the
         function is not available.
     */
-    hasLogger() { this.socketSend("HasLogger", this.getHasLogger()) },
+  hasLogger() {
+    this.socketSend("HasLogger", this.getHasLogger());
+  },
 
-    getHasLogger() {
-        if( this.socket.hasLogger ) {
-            return this.socket.hasLogger()
-        } else {
-            return null
-        }
-    },
+  getHasLogger() {
+    if (this.socket.hasLogger) {
+      return this.socket.hasLogger();
+    } else {
+      return null;
+    }
+  },
 
-    /* isConnected
+  /* isConnected
 
         Retrieve whether the socket is currently connected and send it back to
         Elm as a Bool.
     */
-    isConnected() { this.socketSend("IsConnected", this.socket.isConnected()) },
+  isConnected() {
+    this.socketSend("IsConnected", this.socket.isConnected());
+  },
 
-
-    /* makeRef
+  /* makeRef
 
         Retrieve the next message ref, accounting for overflows, and send it
         back to Elm as a String.
     */
-    makeRef() { this.socketSend("MakeRef", this.socket.makeRef()) },
+  makeRef() {
+    this.socketSend("MakeRef", this.socket.makeRef());
+  },
 
-
-    /* protocol
+  /* protocol
 
         Retrieve the current protocol and send it back to Elm as a String.
     */
-    protocol() { this.socketSend("Protocol", this.socket.protocol()) },
+  protocol() {
+    this.socketSend("Protocol", this.socket.protocol());
+  },
 
-
-    /* info
+  /* info
 
         Retrieve all the socket info and send it back to Elm.
     */
-    info() {
-        let info =
-            { connectionState: this.socket.connectionState(),
-              endPointURL: this.socket.endPointURL(),
-              hasLogger: this.getHasLogger(),
-              isConnected: this.socket.isConnected(),
-              nextMessageRef: this.socket.makeRef(),
-              protocol: this.socket.protocol()
-            }
+  info() {
+    let info = {
+      connectionState: this.socket.connectionState(),
+      endPointURL: this.socket.endPointURL(),
+      hasLogger: this.getHasLogger(),
+      isConnected: this.socket.isConnected(),
+      nextMessageRef: this.socket.makeRef(),
+      protocol: this.socket.protocol()
+    };
 
-        this.socketSend("Info", info )
-    },
+    this.socketSend("Info", info);
+  },
 
-    /* socketSend
+  /* socketSend
 
         Send data to Elm.
 
@@ -337,16 +347,11 @@ let ElmPhoenixWebSocket = {
         payload <json>|<elm comparable>
             The data to send.
     */
-    socketSend(msg, payload) {
-        this.elmPorts.socketReceiver.send(
-            {msg: msg,
-             payload: payload
-            }
-        )
-    },
+  socketSend(msg, payload) {
+    this.elmPorts.socketReceiver.send({ msg: msg, payload: payload });
+  },
 
-
-    /* log
+  /* log
 
         Logs the message.
 
@@ -355,29 +360,27 @@ let ElmPhoenixWebSocket = {
             msg <string>
             data <object>
     */
-    log(params) {
-        if( this.socket.hasLogger && this.socket.hasLogger() ) {
-            this.socket.log(params.kind, params.msg, params.data)
-        }
-    },
+  log(params) {
+    if (this.socket.hasLogger && this.socket.hasLogger()) {
+      this.socket.log(params.kind, params.msg, params.data);
+    }
+  },
 
-    startLogging() {
-        this.socket.logger = this.logger
-    },
+  startLogging() {
+    this.socket.logger = this.logger;
+  },
 
-    stopLogging() {
-        this.socket.logger = null
-    },
+  stopLogging() {
+    this.socket.logger = null;
+  },
 
-    logger(kind, msg, data) { console.log(`${kind}: ${msg}`, data) },
+  logger(kind, msg, data) {
+    console.log(`${kind}: ${msg}`, data);
+  },
 
+  /********** Channel **********/
 
-
-
-
-    /********** Channel **********/
-
-    /* join
+  /* join
 
         Join a channel.
 
@@ -395,44 +398,50 @@ let ElmPhoenixWebSocket = {
             timeout <maybe int>
                 Optional timeout in ms.
     */
-    join(params) {
-        let channel = this.createChannel(params)
+  join(params) {
+    let channel = this.createChannel(params);
 
-        let join = {}
+    let join = {};
 
-        // Join the channel, with or without a custom timeout.
-        if(params.timeout) {
-            join = channel.join(params.timeout)
-        } else {
-            join = channel.join()
-        }
+    // Join the channel, with or without a custom timeout.
+    if (params.timeout) {
+      join = channel.join(params.timeout);
+    } else {
+      join = channel.join();
+    }
 
-        join
-            .receive("ok", (payload) => this.channelSend(params.topic, "JoinOk", payload))
-            .receive("error", (payload) => this.channelSend(params.topic, "JoinError", payload))
-            .receive("timeout", () => this.channelSend(params.topic, "JoinTimeout", params.payload))
-    },
+    join
+      .receive("ok", payload =>
+        this.channelSend(params.topic, "JoinOk", payload)
+      )
+      .receive("error", payload =>
+        this.channelSend(params.topic, "JoinError", payload)
+      )
+      .receive("timeout", () =>
+        this.channelSend(params.topic, "JoinTimeout", params.payload)
+      );
+  },
 
-    createChannel(params) {
-        let channel = this.socket.channel(params.topic, params.payload)
+  createChannel(params) {
+    let channel = this.socket.channel(params.topic, params.payload);
 
-        channel.onClose( () => this.channelSend(params.topic, "Closed", {}))
-        channel.onError( () => this.channelSend(params.topic, "Error", {}))
+    channel.onClose(() => this.channelSend(params.topic, "Closed", {}));
+    channel.onError(() => this.channelSend(params.topic, "Error", {}));
 
-        channel.on("presence_diff", diff => this.onDiff(params.topic, diff))
-        channel.on("presence_state", state => this.onState(params.topic, state))
+    channel.on("presence_diff", diff => this.onDiff(params.topic, diff));
+    channel.on("presence_state", state => this.onState(params.topic, state));
 
-        // Add the channel to the map of channels with the
-        // topic as the key, so that it can be selected by
-        // topic later.
-        this.channels[params.topic] = channel
+    // Add the channel to the map of channels with the
+    // topic as the key, so that it can be selected by
+    // topic later.
+    this.channels[params.topic] = channel;
 
-        this.allOn(params)
+    this.allOn(params);
 
-        return channel
-    },
+    return channel;
+  },
 
-    /* push
+  /* push
 
         Push an event to the server with data.
 
@@ -449,28 +458,46 @@ let ElmPhoenixWebSocket = {
             timeout <maybe int>
                 The timeout before retrying.
     */
-    push(params) {
-        // Select the channel to push to.
-        let channel = this.find(params.topic)
+  push(params) {
+    // Select the channel to push to.
+    let channel = this.find(params.topic);
 
-        let push = {}
+    let push = {};
 
-        /* Push the event and payload to the server, with or without a custom
+    /* Push the event and payload to the server, with or without a custom
            timeout.
         */
-        if(params.timeout) {
-            push = channel.push(params.event, params.payload, params.timeout)
-        } else {
-            push = channel.push(params.event, params.payload)
-        }
+    if (params.timeout) {
+      push = channel.push(params.event, params.payload, params.timeout);
+    } else {
+      push = channel.push(params.event, params.payload);
+    }
 
-        push
-            .receive("ok", (payload) => this.channelSend(params.topic, "PushOk", {event: params.event, payload: payload, ref: params.ref}))
-            .receive("error", (payload) => this.channelSend(params.topic, "PushError", {event: params.event, payload: payload, ref: params.ref}))
-            .receive("timeout", () => this.channelSend(params.topic, "PushTimeout", {event: params.event, payload: params.payload, ref: params.ref}))
-    },
+    push
+      .receive("ok", payload =>
+        this.channelSend(params.topic, "PushOk", {
+          event: params.event,
+          payload: payload,
+          ref: params.ref
+        })
+      )
+      .receive("error", payload =>
+        this.channelSend(params.topic, "PushError", {
+          event: params.event,
+          payload: payload,
+          ref: params.ref
+        })
+      )
+      .receive("timeout", () =>
+        this.channelSend(params.topic, "PushTimeout", {
+          event: params.event,
+          payload: params.payload,
+          ref: params.ref
+        })
+      );
+  },
 
-    /* on
+  /* on
 
         Subscribe to a channel event.
 
@@ -484,22 +511,21 @@ let ElmPhoenixWebSocket = {
             event <string>
                 The event to subscribe to.
     */
-    on(params) {
-        let channel = this.find(params.topic)
+  on(params) {
+    let channel = this.find(params.topic);
 
-        let events = this.events[params.topic]
+    let events = this.events[params.topic];
 
-        if( channel && !events ) {
-            this.events[params.topic] = [params.event]
-            this.subscribe(channel, params.topic, params.event)
+    if (channel && !events) {
+      this.events[params.topic] = [params.event];
+      this.subscribe(channel, params.topic, params.event);
+    } else if (channel && events && events.indexOf(params.event) == -1) {
+      events.push(params.event);
+      this.subscribe(channel, params.topic, params.event);
+    }
+  },
 
-        } else if (channel && events && events.indexOf(params.event) == -1) {
-            events.push(params.event)
-            this.subscribe(channel, params.topic, params.event)
-        }
-    },
-
-    /* allOn
+  /* allOn
 
         Subscribe to channel events.
 
@@ -513,19 +539,19 @@ let ElmPhoenixWebSocket = {
             events <list string>
                 The events to subscribe to.
     */
-    allOn(params) {
-        for( let i = 0; i < params.events.length; i++) {
-            this.on( {topic: params.topic, event: params.events[i]} )
-        }
-    },
+  allOn(params) {
+    for (let i = 0; i < params.events.length; i++) {
+      this.on({ topic: params.topic, event: params.events[i] });
+    }
+  },
 
-    subscribe(channel, topic, event) {
-        channel.on(event, payload => this.channelSend(topic, "Message", {event: event, payload: payload}))
-    },
+  subscribe(channel, topic, event) {
+    channel.on(event, payload =>
+      this.topicSend(topic, { event: event, payload: payload })
+    );
+  },
 
-
-
-    /* off
+  /* off
 
         Turn off a subscription to a channel event.
 
@@ -536,18 +562,18 @@ let ElmPhoenixWebSocket = {
             event <string>
                 The event to unsubscribe to.
     */
-    off(params) {
-        let channel = this.find(params.topic)
+  off(params) {
+    let channel = this.find(params.topic);
 
-        let events = this.events[params.topic]
+    let events = this.events[params.topic];
 
-        if(channel && events && events.indexOf(params.event) != -1) {
-            channel.off(params.event)
-            events.splice(events.indexOf(params.event), 1)
-        }
-    },
+    if (channel && events && events.indexOf(params.event) != -1) {
+      channel.off(params.event);
+      events.splice(events.indexOf(params.event), 1);
+    }
+  },
 
-    /* allOff
+  /* allOff
 
         Turn off subscriptions to channel events.
 
@@ -558,14 +584,13 @@ let ElmPhoenixWebSocket = {
             events <list string>
                 The events to subscribe to.
     */
-    allOff(params) {
-        for( let i = 0; i < params.events.length; i++ ) {
-            this.off( {topic: params.topic, event: params.events[i]} )
-        }
-    },
+  allOff(params) {
+    for (let i = 0; i < params.events.length; i++) {
+      this.off({ topic: params.topic, event: params.events[i] });
+    }
+  },
 
-
-    /* leave
+  /* leave
 
         Leave the channel.
 
@@ -576,43 +601,42 @@ let ElmPhoenixWebSocket = {
             timeout <maybe int>
                 The timeout before retrying.
     */
-    leave(params) {
+  leave(params) {
+    // Select the channel to leave.
+    let channel = this.find(params.topic);
 
-        // Select the channel to leave.
-        let channel = this.find(params.topic)
+    this.events[params.topic] = [];
 
-        this.events[params.topic] = []
+    channel
+      .leave(params.timeout)
+      .receive("ok", _ => this.leaveOk(params.topic));
+  },
 
-        channel.leave(params.timeout)
-            .receive("ok", _ => this.leaveOk(params.topic) )
-    },
-
-
-    /* leaveOk
+  /* leaveOk
 
         Callback after leaving a channel.
 
         topic <string>
             The topic of the channel to leave.
     */
-    leaveOk(topic) {
-        this.channelSend(topic, "LeaveOk", {})
+  leaveOk(topic) {
+    this.channelSend(topic, "LeaveOk", {});
 
-        delete this.find(topic)
-    },
+    delete this.find(topic);
+  },
 
-    /* find
+  /* find
 
         Find a channel by topic.
 
         topic <string>
             The topic of the channel to find.
     */
-    find(topic) {
-        return this.channels[topic]
-    },
+  find(topic) {
+    return this.channels[topic];
+  },
 
-    /* channelSend
+  /* channelSend
 
         Send data to Elm.
 
@@ -629,20 +653,42 @@ let ElmPhoenixWebSocket = {
         payload <json>|<elm comparable>
             The data to send.
     */
-    channelSend(topic, msg, payload) {
-        this.elmPorts.channelReceiver.send(
-            {topic: topic,
-             msg: msg,
-             payload: payload
-            }
-        )
-    },
+  channelSend(topic, msg, payload) {
+    this.elmPorts.channelReceiver.send({
+      topic: topic,
+      msg: msg,
+      payload: payload
+    });
+  },
+
+  /* topicSend
+
+        Send data to Elm.
+
+        As we can't be certain the ports have been set up, make checks before
+        trying to send the data, and report any errors to the console.
 
 
-    /********** Presence **********/
+        topic <string>
+            The channel topic.
 
+        msg <string>
+            The message to send through the port.
 
-    /* onDiff
+        payload <json>|<elm comparable>
+            The data to send.
+    */
+  topicSend(topic, msg, payload) {
+    this.elmPorts.topicReciever.send({
+      topic: topic,
+      msg: "Message",
+      payload: payload
+    });
+  },
+
+  /********** Presence **********/
+
+  /* onDiff
 
         Called when a user presence joins or leaves.
 
@@ -652,24 +698,32 @@ let ElmPhoenixWebSocket = {
         diff <object>
             The diff received from Phoenix Presence.
     */
-    onDiff(topic, diff) {
-        let currentPresence = this.presences[topic] || {}
+  onDiff(topic, diff) {
+    let currentPresence = this.presences[topic] || {};
 
-        let newPresence = this.phoenixPresence.syncDiff(
-            currentPresence,
-            diff,
-            (id, current, newPres) => this.presenceSend(topic, "Join", (this.packageForElm(id, newPres))),
-            (id, current, leftPres) => this.presenceSend(topic, "Leave", (this.packageForElm(id, leftPres)))
-        )
+    let newPresence = this.phoenixPresence.syncDiff(
+      currentPresence,
+      diff,
+      (id, current, newPres) =>
+        this.presenceSend(topic, "Join", this.packageForElm(id, newPres)),
+      (id, current, leftPres) =>
+        this.presenceSend(topic, "Leave", this.packageForElm(id, leftPres))
+    );
 
-        this.presenceSend(topic, "Diff", {leaves: this.toList(diff.leaves), joins: this.toList(diff.joins)})
-        this.presenceSend(topic, "State",{list: this.phoenixPresence.list(newPresence, (id, metas) => (this.packageForElm(id, metas)))})
+    this.presenceSend(topic, "Diff", {
+      leaves: this.toList(diff.leaves),
+      joins: this.toList(diff.joins)
+    });
+    this.presenceSend(topic, "State", {
+      list: this.phoenixPresence.list(newPresence, (id, metas) =>
+        this.packageForElm(id, metas)
+      )
+    });
 
-        this.presences[topic] = newPresence
-    },
+    this.presences[topic] = newPresence;
+  },
 
-
-    /* onState
+  /* onState
 
         Called when a user presence joins or leaves.
 
@@ -679,23 +733,28 @@ let ElmPhoenixWebSocket = {
         state <object>
             The state received from Phoenix Presence.
     */
-    onState(topic, state) {
-        let currentPresence = this.presences[topic]
+  onState(topic, state) {
+    let currentPresence = this.presences[topic];
 
-        let newPresence = this.phoenixPresence.syncState(
-            currentPresence,
-            state,
-            (id, current, newPres) => this.presenceSend(topic, "Join", (this.packageForElm(id, newPres))),
-            (id, current, leftPres) => this.presenceSend(topic, "Leave", (this.packageForElm(id, leftPres)))
-        )
+    let newPresence = this.phoenixPresence.syncState(
+      currentPresence,
+      state,
+      (id, current, newPres) =>
+        this.presenceSend(topic, "Join", this.packageForElm(id, newPres)),
+      (id, current, leftPres) =>
+        this.presenceSend(topic, "Leave", this.packageForElm(id, leftPres))
+    );
 
-        this.presenceSend(topic, "State",{list: this.phoenixPresence.list(newPresence, (id, presence) => (this.packageForElm(id, presence)))})
+    this.presenceSend(topic, "State", {
+      list: this.phoenixPresence.list(newPresence, (id, presence) =>
+        this.packageForElm(id, presence)
+      )
+    });
 
-        this.presences[topic] = newPresence
-    },
+    this.presences[topic] = newPresence;
+  },
 
-
-    /* toList
+  /* toList
 
         List the presences in a consistent form that is easier to handle in
         Elm.
@@ -708,18 +767,17 @@ let ElmPhoenixWebSocket = {
         Returns:
             [{id: "id1", metas: metas}, {id: "id2", metas: metas}, ... ]
     */
-    toList(presence) {
-        let list = []
+  toList(presence) {
+    let list = [];
 
-        for(var id in presence) {
-            list.push(this.packageForElm(id, presence[id]))
-        }
+    for (var id in presence) {
+      list.push(this.packageForElm(id, presence[id]));
+    }
 
-        return list
-    },
+    return list;
+  },
 
-
-    /* packageForElm
+  /* packageForElm
 
         Package the presence into a consistent form that is easier to handle in
         Elm.
@@ -738,12 +796,16 @@ let ElmPhoenixWebSocket = {
         The whole presence Object is also provided in order to enable decoding
         of additional data stored on the Presence that can't be foreseen.
     */
-    packageForElm(id, presence) {
-        return {id: id, metas: presence.metas, user: presence.user || null, presence: presence}
-    },
+  packageForElm(id, presence) {
+    return {
+      id: id,
+      metas: presence.metas,
+      user: presence.user || null,
+      presence: presence
+    };
+  },
 
-
-    /* presenceSend
+  /* presenceSend
 
         Send data to Elm.
 
@@ -759,21 +821,17 @@ let ElmPhoenixWebSocket = {
         payload <json>|<elm comparable>
             The data to send.
     */
-    presenceSend(topic, msg, payload) {
-        if(this.elmPorts.presenceReceiver) {
-            this.elmPorts.presenceReceiver.send(
-                {topic: topic,
-                 msg: msg,
-                 payload: payload
-                }
-            )
-        } else {
-            console.warn("No presenceReceiver port found.")
-        }
+  presenceSend(topic, msg, payload) {
+    if (this.elmPorts.presenceReceiver) {
+      this.elmPorts.presenceReceiver.send({
+        topic: topic,
+        msg: msg,
+        payload: payload
+      });
+    } else {
+      console.warn("No presenceReceiver port found.");
     }
-}
+  }
+};
 
-export default ElmPhoenixWebSocket
-
-
-
+export default ElmPhoenixWebSocket;

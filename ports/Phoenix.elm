@@ -4,6 +4,7 @@ port module Ports.Phoenix exposing
     , phoenixSend
     , presenceReceiver
     , socketReceiver
+    , topicReceiver
     )
 
 {-| Ports to be used by the Elm-Phoenix-Websocket package.
@@ -31,6 +32,7 @@ config =
     { phoenixSend = phoenixSend
     , socketReceiver = socketReceiver
     , channelReceiver = channelReceiver
+    , topicReceiver = topicReceiver
     , presenceReceiver = presenceReceiver
     }
 
@@ -67,6 +69,17 @@ If you are using the Phoenix module, this is taken care of for you.
 
 -}
 port channelReceiver : ({ topic : String, msg : String, payload : Value } -> msg) -> Sub msg
+
+
+{-| Receive messages from channel topics.
+
+This is passed in as parameter to the `topicSubscription` function in the Channel
+module.
+
+If you are using the Phoenix module, this is taken care of for you.
+
+-}
+port topicReceiver : ({ topic : String, msg : String, payload : Value } -> msg) -> Sub msg
 
 
 {-| Receive presence messages.

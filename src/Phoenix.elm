@@ -24,6 +24,7 @@ module Phoenix exposing
     , presenceState, presenceDiff, presenceJoins, presenceLeaves, lastPresenceJoin, lastPresenceLeave
     , batch, batchWithParams
     , log, startLogging, stopLogging
+    , TopicMsg(..), topicSubscribe
     )
 
 {-| This module is a wrapper around the [Socket](Phoenix.Socket),
@@ -301,6 +302,14 @@ type alias PortConfig =
          -> Msg
         )
         -> Sub Msg
+    , topicReceiver :
+        ({ topic : String
+         , msg : String
+         , payload : Value
+         }
+         -> Channel.TopicMsg
+        )
+        -> Sub Channel.TopicMsg
     , presenceReceiver :
         ({ topic : String
          , msg : String
@@ -1142,6 +1151,21 @@ subscriptions (Model model) =
         ]
 
 
+topicSubscribe : Model -> Sub TopicMsg
+topicSubscribe (Model model) =
+    model.portConfig.topicReceiver
+        |> Channel.topicSubscription
+        |> Sub.map
+            (\chMsg ->
+                case chMsg of
+                    Channel.Event event ->
+                        Event event
+
+                    Channel.BadEvent err ->
+                        BadEvent err
+            )
+
+
 {-| Add the [Event](#Event) you want to receive from the Channel identified by
 [Topic](#Topic).
 -}
@@ -1204,6 +1228,17 @@ type Msg
     | ReceivedPresenceMsg Presence.Msg
     | ReceivedSocketMsg Socket.Msg
     | TimeoutTick Time.Posix
+
+
+{-| The type for incoming topic messages from the topic port
+-}
+type TopicMsg
+    = Event
+        { topic : String
+        , event : String
+        , payload : Value
+        }
+    | BadEvent String
 
 
 {-|
@@ -1270,9 +1305,6 @@ update msg (Model model) =
                     , Cmd.none
                     , ChannelResponse (LeaveOk topic)
                     )
-
-                Channel.Message topic event payload ->
-                    ( Model model, Cmd.none, ChannelEvent topic event payload )
 
                 Channel.PushError topic event payload ref ->
                     let
